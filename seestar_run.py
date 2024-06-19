@@ -107,35 +107,31 @@ class SeestarClient:
     def is_watching_events(self):
         return self.is_watch_events
 
-
-
-def receieve_message_thread_fn():
-    global client
-        
-    msg_remainder = ""
-    while client.is_watching_events():
-        #print("checking for msg")
-        data = client.get_socket_msg()
-        if data:
-            msg_remainder += data
-            first_index = msg_remainder.find("\r\n")
-            
-            while first_index >= 0:
-                first_msg = msg_remainder[0:first_index]
-                msg_remainder = msg_remainder[first_index+2:]            
-                parsed_data = json.loads(first_msg)
-                
-                if 'Event' in parsed_data and parsed_data['Event'] == "AutoGoto":
-                    state = parsed_data['state']
-                    print("AutoGoto state: %s" % state)
-                    if state == "complete" or state == "fail":
-                        client.set_op_state(state)
-                
-                if is_debug:
-                    print(parsed_data)
-                    
+    def receieve_message_thread_fn(self):
+        msg_remainder = ""
+        while self.is_watching_events():
+            #print("checking for msg")
+            data = self.get_socket_msg()
+            if data:
+                msg_remainder += data
                 first_index = msg_remainder.find("\r\n")
-        time.sleep(1)
+                
+                while first_index >= 0:
+                    first_msg = msg_remainder[0:first_index]
+                    msg_remainder = msg_remainder[first_index+2:]
+                    parsed_data = json.loads(first_msg)
+                    
+                    if 'Event' in parsed_data and parsed_data['Event'] == "AutoGoto":
+                        state = parsed_data['state']
+                        print("AutoGoto state: %s" % state)
+                        if state == "complete" or state == "fail":
+                            self.set_op_state(state)
+
+                    if is_debug:
+                        print(parsed_data)
+
+                    first_index = msg_remainder.find("\r\n")
+            time.sleep(1)
 
 
 
@@ -255,7 +251,7 @@ def main():
                 center_RA = float(data_result['ra'])
                 center_Dec = float(data_result['dec'])
                 print(center_RA, center_Dec)
-            
+
         # print input requests
         print("received parameters:")
         print("  ip address    : " + client.ip)
@@ -278,7 +274,7 @@ def main():
         if nDec % 2 == 0:
             center_Dec += delta_Dec/2
         
-        get_msg_thread = threading.Thread(target=receieve_message_thread_fn)
+        get_msg_thread = threading.Thread(target=client.receieve_message_thread_fn)
         get_msg_thread.start()
         
         mosaic_index = 0
