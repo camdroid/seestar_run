@@ -58,6 +58,12 @@ class SeestarClient:
                 print("Sending2 %s" % json_data)
             resp = self.send_message(json_data + "\r\n")
 
+    def set_op_state(self, state):
+        self.op_state = state
+
+    def get_op_state(self):
+        return self.op_state
+
 
 def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
     global client
@@ -66,7 +72,6 @@ def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get 
 
 def receieve_message_thread_fn():
     global is_watch_events
-    global op_state
     global client
         
     msg_remainder = ""
@@ -86,7 +91,7 @@ def receieve_message_thread_fn():
                     state = parsed_data['state']
                     print("AutoGoto state: %s" % state)
                     if state == "complete" or state == "fail":
-                        op_state = state
+                        client.set_op_state(state)
                 
                 if is_debug:
                     print(parsed_data)
@@ -137,10 +142,10 @@ def stop_stack():
 
 
 def wait_end_op():
-    global op_state
-    op_state = "working"
+    global client
+    client.set_op_state("working")
     heartbeat_timer = 0
-    while op_state == "working":
+    while client.get_op_state() == "working":
         heartbeat_timer += 1
         if heartbeat_timer > 5:
             heartbeat_timer = 0
@@ -296,7 +301,7 @@ def main():
                 
                 time.sleep(3)
                 
-                if op_state == "complete":
+                if client.get_op_state() == "complete":
                     start_stack()    
                     sleep_with_heartbeat()
                     stop_stack()
