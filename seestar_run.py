@@ -4,6 +4,26 @@ import time
 from datetime import datetime
 import threading
 import sys
+import logging
+
+
+# Eventually, I'd like to move this into a class, and just refer to it as
+# something like "class.log" after setting it up in the initializer. For now,
+# this works.
+def get_logger():
+    global is_debug
+    log = logging.getLogger(__name__)
+
+    # Since this gets called before we do input parsing, we need to check
+    # whether is_debug exists yet. Once this has input parsing via argparse or
+    # something, we won't need this.
+    if is_debug is not None and is_debug:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    log.setLevel(level)
+    log.addHandler(logging.StreamHandler(sys.stdout))
+    return log
 
 
 #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
@@ -30,8 +50,7 @@ def get_socket_msg():
         s.connect((HOST, PORT))
         data = s.recv(1024 * 60)
     data = data.decode("utf-8")
-    if is_debug:
-        print("Received :", data)
+    get_logger().debug("Received :%s" % data)
     return data
 
 
@@ -41,6 +60,7 @@ def receieve_message_thread_fn():
     global s
 
     msg_remainder = ""
+    log = get_logger()
     while is_watch_events:
         #print("checking for msg")
         data = get_socket_msg()
@@ -55,12 +75,11 @@ def receieve_message_thread_fn():
 
                 if parsed_data.get('Event') == 'AutoGoto':
                     state = parsed_data['state']
-                    print("AutoGoto state: %s" % state)
+                    log.info("AutoGoto state: %s" % state)
                     if state == "complete" or state == "fail":
                         op_state = state
 
-                if is_debug:
-                    print(parsed_data)
+                log.debug(parsed_data)
 
                 first_index = msg_remainder.find("\r\n")
         time.sleep(1)
@@ -71,8 +90,7 @@ def json_message(instruction):
     data = {"id": cmdid, "method": instruction}
     cmdid += 1
     json_data = json.dumps(data)
-    if is_debug:
-        print("Sending %s" % json_data)
+    get_logger().debug("Sending %s" % json_data)
     send_message(json_data+"\r\n")
 
 
@@ -80,14 +98,13 @@ def json_message2(data):
     if data is None:
         return
     json_data = json.dumps(data)
-    if is_debug:
-        print("Sending2 %s" % json_data)
+    get_logger().debug("Sending2 %s" % json_data)
     resp = send_message(json_data + "\r\n")
 
 
 def goto_target(ra, dec, target_name, is_lp_filter):
     global cmdid
-    print("going to target...")
+    get_logger().info("going to target...")
     data = {}
     data['id'] = cmdid
     cmdid += 1
@@ -103,7 +120,7 @@ def goto_target(ra, dec, target_name, is_lp_filter):
 
 def start_stack():
     global cmdid
-    print("starting to stack...")
+    get_logger().info("starting to stack...")
     data = {}
     data['id'] = cmdid
     cmdid += 1
@@ -116,7 +133,7 @@ def start_stack():
 
 def stop_stack():
     global cmdid
-    print("stop stacking...")
+    get_logger().info("stop stacking...")
     data = {}
     data['id'] = cmdid
     cmdid += 1
@@ -165,7 +182,7 @@ def parse_dec_to_float(dec_string):
         dec_string = dec_string[1:]
     else:
         sign = 1
-    print(dec_string)
+    get_logger().info(dec_string)
     degrees, minutes, seconds = map(float, dec_string.split(':'))
 
     # Convert to decimal degrees
@@ -185,12 +202,14 @@ def main():
     global cmdid
     global is_watch_events
     global is_debug
+    is_debug = False
 
-    version_string = "1.0.0b1"
-    print("seestar_run version: ", version_string)
+    version_string = "1.0.0b2"
+    log = get_logger()
+    log.info("seestar_run version: %s" % version_string)
 
     if len(sys.argv) != 11 and len(sys.argv) != 12:
-        print("expected seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>")
+        log.info("expected seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>")
         sys.exit()
 
     HOST= sys.argv[1]
@@ -211,20 +230,23 @@ def main():
     nDec = int(sys.argv[8])
     mRA = float(sys.argv[9])
     mDec = float(sys.argv[10])
-    is_debug = False
 
     if len(sys.argv) == 12:
         is_debug = sys.argv[11]=="Kai"
 
-    print(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
+    # Once we've parsed the inputs, re-fetch the logger (so we can account for
+    # is_debug)
+    log = get_logger()
+
+    log.info(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
 
     # verify mosaic pattern
     if nRA < 1 or nDec < 0:
-        print("Mosaic size is invalid")
+        log.error("Mosaic size is invalid")
         sys.exit()
 
-    print("nRA: %d", nRA)
-    print("nDec:%d", nDec)
+    log.info("nRA: %d" % nRA)
+    log.info("nDec:%d" % nDec)
 
     PORT = 4700
     cmdid = 999
@@ -246,7 +268,7 @@ def main():
                 data_result = parsed_data['result']
                 center_RA = float(data_result['ra'])
                 center_Dec = float(data_result['dec'])
-                print(center_RA, center_Dec)
+                log.info(center_RA, center_Dec)
 
         # print input requests
         print("received parameters:")
@@ -283,9 +305,10 @@ def main():
                 else:
                     save_target_name = target_name+"_"+str(index_ra+1)+str(index_dec+1)
                 print("goto ", (cur_ra, cur_dec))
+                log.info(f'cgoto ({cur_ra}, {cur_dec})')
                 goto_target(cur_ra, cur_dec, save_target_name, is_use_LP_filter)
                 wait_end_op()
-                print("Goto operation finished")
+                log.info("Goto operation finished")
 
                 time.sleep(3)
 
@@ -293,16 +316,16 @@ def main():
                     start_stack()
                     sleep_with_heartbeat()
                     stop_stack()
-                    print("Stacking operation finished" + save_target_name)
+                    log.info("Stacking operation finished" + save_target_name)
                 else:
-                    print("Goto failed.")
+                    log.info("Goto failed.")
 
                 cur_dec += delta_Dec
                 mosaic_index += 1
             cur_ra += delta_RA
 
 
-    print("Finished seestar_run")
+    log.info("Finished seestar_run")
     is_watch_events = False
     get_msg_thread.join(timeout=5)
     sys.exit()
