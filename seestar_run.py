@@ -10,6 +10,7 @@ class SeestarClient:
         self.ip = ip
         self.port = port
         self.cmdid = cmdid
+        self.is_watch_events = True
 
     # Auto-increment the command ID each time we use it
     def get_cmdid(self):
@@ -92,18 +93,27 @@ class SeestarClient:
         params = { 'restart': True }
         self.send_command('iscope_start_stack', params)
 
-    def stop_stack():
+    def stop_stack(self):
         print("stop stacking...")
         params = { 'stage': 'Stack' }
         self.send_command('iscope_stop_view', params)
 
+    def start_watching_events(self):
+        self.is_watch_events = True
+
+    def stop_watching_events(self):
+        self.is_watch_events = False
+
+    def is_watching_events(self):
+        return self.is_watch_events
+
+
 
 def receieve_message_thread_fn():
-    global is_watch_events
     global client
         
     msg_remainder = ""
-    while is_watch_events:
+    while client.is_watching_events():
         #print("checking for msg")
         data = client.get_socket_msg()
         if data:
@@ -174,13 +184,11 @@ def parse_dec_to_float(dec_string):
 
     return dec_decimal
     
-is_watch_events = True
     
 def main():
     global HOST
     global PORT
     global session_time
-    global is_watch_events
     global is_debug
     global client
     
@@ -303,7 +311,7 @@ def main():
         
         
     print("Finished seestar_run")
-    is_watch_events = False
+    client.stop_watching_events()
     get_msg_thread.join(timeout=5)
     sys.exit()
     
