@@ -177,23 +177,8 @@ def parse_dec_to_float(dec_string):
 is_watch_events = True
 
 
-def main():
-    global HOST
-    global PORT
-    global session_time
-    global s
-    global cmdid
-    global is_watch_events
-    global is_debug
-
-    version_string = "1.0.0b1"
-    print("seestar_run version: ", version_string)
-
-    if len(sys.argv) != 11 and len(sys.argv) != 12:
-        print("expected seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>")
-        sys.exit()
-
-    HOST= sys.argv[1]
+def parse_sys_args():
+    HOST = sys.argv[1]
     target_name = sys.argv[2]
     try:
         center_RA = float(sys.argv[3])
@@ -216,6 +201,28 @@ def main():
     if len(sys.argv) == 12:
         is_debug = sys.argv[11]=="Kai"
 
+    return (HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec, is_debug)
+
+
+def main():
+    global HOST
+    global PORT
+    global session_time
+    global s
+    global cmdid
+    global is_watch_events
+    global is_debug
+
+    version_string = "1.0.0b1"
+    print("seestar_run version: ", version_string)
+
+    if len(sys.argv) != 11 and len(sys.argv) != 12:
+        print("expected seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>")
+        sys.exit()
+
+    is_debug = False
+
+    (HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec, is_ebug) = parse_sys_args()
     print(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
 
     # verify mosaic pattern
