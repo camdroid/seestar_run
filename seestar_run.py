@@ -68,6 +68,15 @@ class SeestarClient:
     def heartbeat(self):
         self.json_message("test_connection")
 
+    def send_command(self, command, params):
+        data = {
+            'id': self.get_cmdid(),
+            'method': command,
+            'params': params,
+        }
+        self.json_message2(data)
+
+
     def goto_target(self, ra, dec, target_name, is_lp_filter):
         print("going to target...")
         params = {
@@ -76,34 +85,17 @@ class SeestarClient:
             'target_name': target_name,
             'lp_filter': is_lp_filter,
         }
-
-        data = {
-            'id': self.get_cmdid(),
-            'method': 'iscope_start_view',
-            'params': params,
-        }
-
-        self.json_message2(data)
+        self.send_command('iscope_start_view', params)
 
     def start_stack(self):
         print("starting to stack...")
         params = { 'restart': True }
-        data = {
-            'id': self.get_cmdid(),
-            'method': 'iscope_start_stack',
-            'params': params,
-        }
-        self.json_message2(data)
+        self.send_command('iscope_start_stack', params)
 
     def stop_stack():
         print("stop stacking...")
         params = { 'stage': 'Stack' }
-        data = {
-            'id': self.get_cmdid(),
-            'method': 'iscope_stop_view',
-            'params': params,
-        }
-        self.json_message2(data)
+        self.send_command('iscope_stop_view', params)
 
 
 def receieve_message_thread_fn():
