@@ -133,28 +133,24 @@ class SeestarClient:
                     first_index = msg_remainder.find("\r\n")
             time.sleep(1)
 
+    def wait_end_op(self):
+        self.set_op_state("working")
+        heartbeat_timer = 0
+        while self.get_op_state() == "working":
+            heartbeat_timer += 1
+            if heartbeat_timer > 5:
+                heartbeat_timer = 0
+                self.heartbeat()
+            time.sleep(1)
 
+    def sleep_with_heartbeat(self):
+        stacking_timer = 0
+        while stacking_timer < session_time:         # stacking time per segment
+            stacking_timer += 1
+            if stacking_timer % 5 == 0:
+                self.heartbeat()
+            time.sleep(1)
 
-def wait_end_op():
-    global client
-    client.set_op_state("working")
-    heartbeat_timer = 0
-    while client.get_op_state() == "working":
-        heartbeat_timer += 1
-        if heartbeat_timer > 5:
-            heartbeat_timer = 0
-            client.heartbeat()
-        time.sleep(1)
-
-    
-def sleep_with_heartbeat():
-    global client
-    stacking_timer = 0
-    while stacking_timer < session_time:         # stacking time per segment
-        stacking_timer += 1
-        if stacking_timer % 5 == 0:
-            client.heartbeat()
-        time.sleep(1)
 
 def parse_ra_to_float(ra_string):
     # Split the RA string into hours, minutes, and seconds
@@ -244,7 +240,7 @@ def main():
         
         if center_RA < 0:
             client.json_message("scope_get_equ_coord")
-            data = get_socket_msg()
+            data = client.get_socket_msg()
             parsed_data = json.loads(data)
             if parsed_data['method'] == "scope_get_equ_coord":
                 data_result = parsed_data['result']
@@ -286,16 +282,17 @@ def main():
                     save_target_name = target_name
                 else:
                     save_target_name = target_name+"_"+str(index_ra+1)+str(index_dec+1)
+
                 print("goto ", (cur_ra, cur_dec))
                 client.goto_target(cur_ra, cur_dec, save_target_name, is_use_LP_filter)
-                wait_end_op()
+                client.wait_end_op()
                 print("Goto operation finished")
                 
                 time.sleep(3)
                 
                 if client.get_op_state() == "complete":
                     client.start_stack()
-                    sleep_with_heartbeat()
+                    client.sleep_with_heartbeat()
                     client.stop_stack()
                     print("Stacking operation finished" + save_target_name)
                 else:
