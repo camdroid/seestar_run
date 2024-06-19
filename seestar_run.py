@@ -59,7 +59,6 @@ class SeestarClient:
             resp = self.send_message(json_data + "\r\n")
 
 
-
 def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
     global client
     client.json_message("test_connection")
@@ -99,39 +98,43 @@ def receieve_message_thread_fn():
 def goto_target(ra, dec, target_name, is_lp_filter):
     global client
     print("going to target...")
-    data = {}
-    data['id'] = client.get_cmdid()
-    data['method'] = 'iscope_start_view'
-    params = {}
-    params['mode'] = 'star'
-    ra_dec = [ra, dec]
-    params['target_ra_dec'] = ra_dec
-    params['target_name'] = target_name
-    params['lp_filter'] = is_lp_filter
-    data['params'] = params
+    params = {
+        'mode': 'star',
+        'target_ra_dec': [ra, dec],
+        'target_name': target_name,
+        'lp_filter': is_lp_filter,
+    }
+
+    data = {
+        'id': client.get_cmdid(),
+        'method': 'iscope_start_view',
+        'params': params,
+    }
+
     client.json_message2(data)
     
 def start_stack():
     global client
     print("starting to stack...")
-    data = {}
-    data['id'] = client.get_cmdid()
-    data['method'] = 'iscope_start_stack'
-    params = {}
-    params['restart'] = True
-    data['params'] = params
+    params = { 'restart': True }
+    data = {
+        'id': client.get_cmdid(),
+        'method': 'iscope_start_stack',
+        'params': params,
+    }
     client.json_message2(data)
 
 def stop_stack():
     global client
     print("stop stacking...")
-    data = {}
-    data['id'] = client.get_cmdid()
-    data['method'] = 'iscope_stop_view'
-    params = {}
-    params['stage'] = 'Stack'
-    data['params'] = params
+    params = { 'stage': 'Stack' }
+    data = {
+        'id': client.get_cmdid(),
+        'method': 'iscope_stop_view',
+        'params': params,
+    }
     client.json_message2(data)
+
 
 def wait_end_op():
     global op_state
