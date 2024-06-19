@@ -5,9 +5,11 @@ from datetime import datetime
 import threading
 import sys
 
-def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
+
+#I noticed a lot of pairs of test_connection followed by a get if nothing was going on
+def heartbeat():
     json_message("test_connection")
-#    json_message("scope_get_equ_coord")
+
 
 def send_message(data):
     global s
@@ -17,6 +19,7 @@ def send_message(data):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, PORT))
         send_message(data)
+
 
 def get_socket_msg():
     global s
@@ -30,6 +33,7 @@ def get_socket_msg():
     if is_debug:
         print("Received :", data)
     return data
+
 
 def receieve_message_thread_fn():
     global is_watch_events
@@ -49,7 +53,7 @@ def receieve_message_thread_fn():
                 msg_remainder = msg_remainder[first_index+2:]
                 parsed_data = json.loads(first_msg)
 
-                if 'Event' in parsed_data and parsed_data['Event'] == "AutoGoto":
+                if parsed_data.get('Event') == 'AutoGoto':
                     state = parsed_data['state']
                     print("AutoGoto state: %s" % state)
                     if state == "complete" or state == "fail":
@@ -61,6 +65,7 @@ def receieve_message_thread_fn():
                 first_index = msg_remainder.find("\r\n")
         time.sleep(1)
 
+
 def json_message(instruction):
     global cmdid
     data = {"id": cmdid, "method": instruction}
@@ -70,12 +75,14 @@ def json_message(instruction):
         print("Sending %s" % json_data)
     send_message(json_data+"\r\n")
 
+
 def json_message2(data):
-    if data:
-        json_data = json.dumps(data)
-        if is_debug:
-            print("Sending2 %s" % json_data)
-        resp = send_message(json_data + "\r\n")
+    if data is None:
+        return
+    json_data = json.dumps(data)
+    if is_debug:
+        print("Sending2 %s" % json_data)
+    resp = send_message(json_data + "\r\n")
 
 
 def goto_target(ra, dec, target_name, is_lp_filter):
@@ -87,12 +94,12 @@ def goto_target(ra, dec, target_name, is_lp_filter):
     data['method'] = 'iscope_start_view'
     params = {}
     params['mode'] = 'star'
-    ra_dec = [ra, dec]
-    params['target_ra_dec'] = ra_dec
+    params['target_ra_dec'] = [ra, dec]
     params['target_name'] = target_name
     params['lp_filter'] = is_lp_filter
     data['params'] = params
     json_message2(data)
+
 
 def start_stack():
     global cmdid
@@ -106,6 +113,7 @@ def start_stack():
     data['params'] = params
     json_message2(data)
 
+
 def stop_stack():
     global cmdid
     print("stop stacking...")
@@ -118,6 +126,7 @@ def stop_stack():
     data['params'] = params
     json_message2(data)
 
+
 def wait_end_op():
     global op_state
     op_state = "working"
@@ -126,7 +135,7 @@ def wait_end_op():
         heartbeat_timer += 1
         if heartbeat_timer > 5:
             heartbeat_timer = 0
-            json_message("test_connection")
+            heartbeat()
         time.sleep(1)
 
 
@@ -135,8 +144,9 @@ def sleep_with_heartbeat():
     while stacking_timer < session_time:         # stacking time per segment
         stacking_timer += 1
         if stacking_timer % 5 == 0:
-            json_message("test_connection")
+            heartbeat()
         time.sleep(1)
+
 
 def parse_ra_to_float(ra_string):
     # Split the RA string into hours, minutes, and seconds
@@ -146,6 +156,7 @@ def parse_ra_to_float(ra_string):
     ra_decimal = hours + minutes / 60 + seconds / 3600
 
     return ra_decimal
+
 
 def parse_dec_to_float(dec_string):
     # Split the Dec string into degrees, minutes, and seconds
@@ -162,7 +173,9 @@ def parse_dec_to_float(dec_string):
 
     return dec_decimal
 
+
 is_watch_events = True
+
 
 def main():
     global HOST
@@ -295,8 +308,6 @@ def main():
     sys.exit()
 
 
-
-
 # seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>
 # python seestar_run.py 192.168.110.30 'Castor' '7:24:32.5' '-41:24:23.5' 0 60 2 2 1.0 1.0
 # python seestar_run.py 192.168.110.30 'Castor' '7:24:32.5' '+41:24:23.5' 0 60 2 2 1.0 1.0
@@ -304,6 +315,3 @@ def main():
 # python seestar_run.py 192.168.110.30 'Castor' 7.4090278 41.4065278 0 60 2 2 1.0 1.0
 if __name__ == "__main__":
     main()
-
-
-
