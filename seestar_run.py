@@ -5,26 +5,41 @@ from datetime import datetime
 import threading
 import sys
 
+class SeestarClient:
+    def __init__(self, ip, port, cmdid):
+        self.ip = ip
+        self.port = port
+        self.cmdid = cmdid
+
+    # Auto-increment the command ID each time we use it
+    def get_cmdid(self):
+        cmdid = self.cmdid
+        self.cmdid += 1
+        return cmdid
+
+
 def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
     json_message("test_connection")
 #    json_message("scope_get_equ_coord")
 
 def send_message(data):
     global s
+    global client
     try:
         s.sendall(data.encode())  # TODO: would utf-8 or unicode_escaped help here
     except socket.error as e:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOST, PORT))
+        s.connect((client.ip, client.port))
         send_message(data)
 
 def get_socket_msg():
     global s
+    global client
     try:
         data = s.recv(1024 * 60)  # comet data is >50kb
     except socket.error as e:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOST, PORT))
+        s.connect((client.ip, client.port))
         data = s.recv(1024 * 60)
     data = data.decode("utf-8")
     if is_debug:
@@ -62,9 +77,8 @@ def receieve_message_thread_fn():
         time.sleep(1)
 
 def json_message(instruction):
-    global cmdid
-    data = {"id": cmdid, "method": instruction}
-    cmdid += 1
+    global client
+    data = {"id": client.get_cmdid(), "method": instruction}
     json_data = json.dumps(data)
     if is_debug:
         print("Sending %s" % json_data)
@@ -79,11 +93,10 @@ def json_message2(data):
 
 
 def goto_target(ra, dec, target_name, is_lp_filter):
-    global cmdid
+    global client
     print("going to target...")
     data = {}
-    data['id'] = cmdid
-    cmdid += 1
+    data['id'] = client.get_cmdid()
     data['method'] = 'iscope_start_view'
     params = {}
     params['mode'] = 'star'
@@ -95,11 +108,10 @@ def goto_target(ra, dec, target_name, is_lp_filter):
     json_message2(data)
     
 def start_stack():
-    global cmdid
+    global client
     print("starting to stack...")
     data = {}
-    data['id'] = cmdid
-    cmdid += 1
+    data['id'] = client.get_cmdid()
     data['method'] = 'iscope_start_stack'
     params = {}
     params['restart'] = True
@@ -107,11 +119,10 @@ def start_stack():
     json_message2(data)
 
 def stop_stack():
-    global cmdid
+    global client
     print("stop stacking...")
     data = {}
-    data['id'] = cmdid
-    cmdid += 1
+    data['id'] = client.get_cmdid()
     data['method'] = 'iscope_stop_view'
     params = {}
     params['stage'] = 'Stack'
@@ -169,9 +180,9 @@ def main():
     global PORT
     global session_time
     global s
-    global cmdid
     global is_watch_events
     global is_debug
+    global client
     
     version_string = "1.0.0b1"
     print("seestar_run version: ", version_string)
@@ -215,11 +226,14 @@ def main():
     
     PORT = 4700 
     cmdid = 999
+
+    client = SeestarClient(HOST, PORT, cmdid)
+
     delta_RA = 0.06
     delta_Dec = 0.9
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
+    s.connect((client.ip, client.port))
     with s:
         
         # flush the socket input stream for garbage
@@ -237,7 +251,7 @@ def main():
             
         # print input requests
         print("received parameters:")
-        print("  ip address    : " + HOST)
+        print("  ip address    : " + client.ip)
         print("  target        : " + target_name)
         print("  RA            : ", center_RA)
         print("  Dec           : ", center_Dec)
