@@ -64,10 +64,46 @@ class SeestarClient:
     def get_op_state(self):
         return self.op_state
 
+    #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
+    def heartbeat(self):
+        self.json_message("test_connection")
 
-def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
-    global client
-    client.json_message("test_connection")
+    def goto_target(self, ra, dec, target_name, is_lp_filter):
+        print("going to target...")
+        params = {
+            'mode': 'star',
+            'target_ra_dec': [ra, dec],
+            'target_name': target_name,
+            'lp_filter': is_lp_filter,
+        }
+
+        data = {
+            'id': self.get_cmdid(),
+            'method': 'iscope_start_view',
+            'params': params,
+        }
+
+        self.json_message2(data)
+
+    def start_stack(self):
+        print("starting to stack...")
+        params = { 'restart': True }
+        data = {
+            'id': self.get_cmdid(),
+            'method': 'iscope_start_stack',
+            'params': params,
+        }
+        self.json_message2(data)
+
+    def stop_stack():
+        print("stop stacking...")
+        params = { 'stage': 'Stack' }
+        data = {
+            'id': self.get_cmdid(),
+            'method': 'iscope_stop_view',
+            'params': params,
+        }
+        self.json_message2(data)
 
 
 def receieve_message_thread_fn():
@@ -100,46 +136,6 @@ def receieve_message_thread_fn():
         time.sleep(1)
 
 
-def goto_target(ra, dec, target_name, is_lp_filter):
-    global client
-    print("going to target...")
-    params = {
-        'mode': 'star',
-        'target_ra_dec': [ra, dec],
-        'target_name': target_name,
-        'lp_filter': is_lp_filter,
-    }
-
-    data = {
-        'id': client.get_cmdid(),
-        'method': 'iscope_start_view',
-        'params': params,
-    }
-
-    client.json_message2(data)
-    
-def start_stack():
-    global client
-    print("starting to stack...")
-    params = { 'restart': True }
-    data = {
-        'id': client.get_cmdid(),
-        'method': 'iscope_start_stack',
-        'params': params,
-    }
-    client.json_message2(data)
-
-def stop_stack():
-    global client
-    print("stop stacking...")
-    params = { 'stage': 'Stack' }
-    data = {
-        'id': client.get_cmdid(),
-        'method': 'iscope_stop_view',
-        'params': params,
-    }
-    client.json_message2(data)
-
 
 def wait_end_op():
     global client
@@ -149,7 +145,7 @@ def wait_end_op():
         heartbeat_timer += 1
         if heartbeat_timer > 5:
             heartbeat_timer = 0
-            client.json_message("test_connection")
+            client.heartbeat()
         time.sleep(1)
 
     
@@ -159,7 +155,7 @@ def sleep_with_heartbeat():
     while stacking_timer < session_time:         # stacking time per segment
         stacking_timer += 1
         if stacking_timer % 5 == 0:
-            client.json_message("test_connection")
+            client.heartbeat()
         time.sleep(1)
 
 def parse_ra_to_float(ra_string):
@@ -295,16 +291,16 @@ def main():
                 else:
                     save_target_name = target_name+"_"+str(index_ra+1)+str(index_dec+1)
                 print("goto ", (cur_ra, cur_dec))
-                goto_target(cur_ra, cur_dec, save_target_name, is_use_LP_filter)
+                client.goto_target(cur_ra, cur_dec, save_target_name, is_use_LP_filter)
                 wait_end_op()
                 print("Goto operation finished")
                 
                 time.sleep(3)
                 
                 if client.get_op_state() == "complete":
-                    start_stack()    
+                    client.start_stack()
                     sleep_with_heartbeat()
-                    stop_stack()
+                    client.stop_stack()
                     print("Stacking operation finished" + save_target_name)
                 else:
                     print("Goto failed.")
