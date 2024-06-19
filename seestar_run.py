@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import threading
 import sys
+import argparse
 
 
 #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
@@ -225,6 +226,39 @@ def main():
     (HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec, is_ebug) = parse_sys_args()
     print(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
 
+    parser = setup_argparse()
+    args = parser.parse_args()
+
+    # This is going to be messy for now, but I'll clean up the variable references in a future diff.
+    HOST = args.ip
+    target_name = args.title
+    center_RA = args.ra
+    center_Dec = args.dec
+    is_use_LP_filter = args.is_use_LP_filter
+    session_time = args.session_time
+    nRA = args.ra_panel_size
+    nDec = args.dec_panel_size
+    mRA = args.ra_offset_factor
+    mDec = args.dec_offset_factor
+    print(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
+
+    # Preserve old behavior. In the future, I'd like to change this to use the
+    # standard "-v" flag, but that's out of scope for this diff.
+    is_debug = args.is_debug == "Kai"
+
+    try:
+        center_RA = float(center_RA)
+    except ValueError:
+        center_RA = parse_ra_to_float(center_RA)
+
+    try:
+        center_Dec = float(center_Dec)
+    except ValueError:
+        center_Dec = parse_dec_to_float(center_Dec)
+
+
+    print(HOST, target_name, center_RA, center_Dec, is_use_LP_filter, session_time, nRA, nDec, mRA, mDec)
+
     # verify mosaic pattern
     if nRA < 1 or nDec < 0:
         print("Mosaic size is invalid")
@@ -313,6 +347,27 @@ def main():
     is_watch_events = False
     get_msg_thread.join(timeout=5)
     sys.exit()
+
+
+def setup_argparse():
+    # For now, I'm just adding argparse with the bare minimum information. In
+    # the future, we can add descriptive messages here that will make it easier
+    # for users to interact with this script.
+    parser = argparse.ArgumentParser(description='Seestar Run')
+    parser.add_argument('ip', type=str,
+                        help='Your SeeStar\'s IP address')
+    parser.add_argument('title', type=str, help="Observation Target")
+    parser.add_argument('ra', type=str)
+    parser.add_argument('dec', type=str)
+    parser.add_argument('is_use_LP_filter', type=bool)
+    parser.add_argument('session_time', type=int)
+    parser.add_argument('ra_panel_size', type=int)
+    parser.add_argument('dec_panel_size', type=int)
+    parser.add_argument('ra_offset_factor', type=float)
+    parser.add_argument('dec_offset_factor', type=float)
+    parser.add_argument('is_debug', type=str, default=False, nargs='?')
+
+    return parser
 
 
 # seestar_run <ip_address> <target_name> <ra> <dec> <is_use_LP_filter> <session_time> <RA panel size> <Dec panel size> <RA offset factor> <Dec offset factor>
