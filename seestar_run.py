@@ -26,39 +26,54 @@ class SeestarClient:
     def reconnect(self):
         return self.connect()
 
+    def get_socket_msg(self):
+        try:
+            data = self.socket.recv(1024 * 60)  # comet data is >50kb
+        except socket.error as e:
+            self.reconnect()
+            data = self.socket.recv(1024 * 60)
+        data = data.decode("utf-8")
+        if is_debug:
+            print("Received :", data)
+        return data
+
+    def send_message(self, data):
+        try:
+            self.socket.sendall(data.encode())  # TODO: would utf-8 or unicode_escaped help here
+        except socket.error as e:
+            self.reconnect()
+            self.send_message(data)
+
+    def json_message(self, instruction):
+        data = {"id": self.get_cmdid(), "method": instruction}
+        json_data = json.dumps(data)
+        if is_debug:
+            print("Sending %s" % json_data)
+        self.send_message(json_data+"\r\n")
+
+    def json_message2(self, data):
+        if data:
+            json_data = json.dumps(data)
+            if is_debug:
+                print("Sending2 %s" % json_data)
+            resp = self.send_message(json_data + "\r\n")
+
+
 
 def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
-    json_message("test_connection")
-#    json_message("scope_get_equ_coord")
-
-def send_message(data):
     global client
-    try:
-        client.socket.sendall(data.encode())  # TODO: would utf-8 or unicode_escaped help here
-    except socket.error as e:
-        client.reconnect()
-        send_message(data)
+    client.json_message("test_connection")
 
-def get_socket_msg():
-    global client
-    try:
-        data = client.socket.recv(1024 * 60)  # comet data is >50kb
-    except socket.error as e:
-        client.reconnect()
-        data = client.socket.recv(1024 * 60)
-    data = data.decode("utf-8")
-    if is_debug:
-        print("Received :", data)
-    return data
-    
+
 def receieve_message_thread_fn():
     global is_watch_events
     global op_state
+    global client
         
     msg_remainder = ""
     while is_watch_events:
         #print("checking for msg")
-        data = get_socket_msg()
+        data = client.get_socket_msg()
         if data:
             msg_remainder += data
             first_index = msg_remainder.find("\r\n")
@@ -80,21 +95,6 @@ def receieve_message_thread_fn():
                 first_index = msg_remainder.find("\r\n")
         time.sleep(1)
 
-def json_message(instruction):
-    global client
-    data = {"id": client.get_cmdid(), "method": instruction}
-    json_data = json.dumps(data)
-    if is_debug:
-        print("Sending %s" % json_data)
-    send_message(json_data+"\r\n")
-
-def json_message2(data):
-    if data:
-        json_data = json.dumps(data)
-        if is_debug:
-            print("Sending2 %s" % json_data)
-        resp = send_message(json_data + "\r\n")
-
 
 def goto_target(ra, dec, target_name, is_lp_filter):
     global client
@@ -109,7 +109,7 @@ def goto_target(ra, dec, target_name, is_lp_filter):
     params['target_name'] = target_name
     params['lp_filter'] = is_lp_filter
     data['params'] = params
-    json_message2(data)
+    client.json_message2(data)
     
 def start_stack():
     global client
@@ -120,7 +120,7 @@ def start_stack():
     params = {}
     params['restart'] = True
     data['params'] = params
-    json_message2(data)
+    client.json_message2(data)
 
 def stop_stack():
     global client
@@ -131,7 +131,7 @@ def stop_stack():
     params = {}
     params['stage'] = 'Stack'
     data['params'] = params
-    json_message2(data)
+    client.json_message2(data)
 
 def wait_end_op():
     global op_state
@@ -141,16 +141,17 @@ def wait_end_op():
         heartbeat_timer += 1
         if heartbeat_timer > 5:
             heartbeat_timer = 0
-            json_message("test_connection")
+            client.json_message("test_connection")
         time.sleep(1)
 
     
 def sleep_with_heartbeat():
+    global client
     stacking_timer = 0
     while stacking_timer < session_time:         # stacking time per segment
         stacking_timer += 1
         if stacking_timer % 5 == 0:
-            json_message("test_connection")
+            client.json_message("test_connection")
         time.sleep(1)
 
 def parse_ra_to_float(ra_string):
@@ -242,7 +243,7 @@ def main():
         #get_socket_msg()
         
         if center_RA < 0:
-            json_message("scope_get_equ_coord")
+            client.json_message("scope_get_equ_coord")
             data = get_socket_msg()
             parsed_data = json.loads(data)
             if parsed_data['method'] == "scope_get_equ_coord":
