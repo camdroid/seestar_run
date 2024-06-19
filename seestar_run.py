@@ -17,30 +17,35 @@ class SeestarClient:
         self.cmdid += 1
         return cmdid
 
+    def connect(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.ip, self.port))
+        self.socket = s
+        return s
+
+    def reconnect(self):
+        return self.connect()
+
 
 def heartbeat(): #I noticed a lot of pairs of test_connection followed by a get if nothing was going on
     json_message("test_connection")
 #    json_message("scope_get_equ_coord")
 
 def send_message(data):
-    global s
     global client
     try:
-        s.sendall(data.encode())  # TODO: would utf-8 or unicode_escaped help here
+        client.socket.sendall(data.encode())  # TODO: would utf-8 or unicode_escaped help here
     except socket.error as e:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((client.ip, client.port))
+        client.reconnect()
         send_message(data)
 
 def get_socket_msg():
-    global s
     global client
     try:
-        data = s.recv(1024 * 60)  # comet data is >50kb
+        data = client.socket.recv(1024 * 60)  # comet data is >50kb
     except socket.error as e:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((client.ip, client.port))
-        data = s.recv(1024 * 60)
+        client.reconnect()
+        data = client.socket.recv(1024 * 60)
     data = data.decode("utf-8")
     if is_debug:
         print("Received :", data)
@@ -49,7 +54,6 @@ def get_socket_msg():
 def receieve_message_thread_fn():
     global is_watch_events
     global op_state
-    global s
         
     msg_remainder = ""
     while is_watch_events:
@@ -179,7 +183,6 @@ def main():
     global HOST
     global PORT
     global session_time
-    global s
     global is_watch_events
     global is_debug
     global client
@@ -232,8 +235,7 @@ def main():
     delta_RA = 0.06
     delta_Dec = 0.9
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((client.ip, client.port))
+    s = client.connect()
     with s:
         
         # flush the socket input stream for garbage
