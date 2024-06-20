@@ -79,7 +79,7 @@ class SeestarClient:
 
 
     def goto_target(self, ra, dec, target_name, is_lp_filter):
-        print("going to target...")
+        print("going to target...", (ra, dec))
         params = {
             'mode': 'star',
             'target_ra_dec': [ra, dec],
@@ -87,6 +87,8 @@ class SeestarClient:
             'lp_filter': is_lp_filter,
         }
         self.send_command('iscope_start_view', params)
+        self.wait_end_op()
+        print("Goto operation finished")
 
     def start_stack(self):
         print("starting to stack...")
@@ -273,20 +275,15 @@ def main():
         get_msg_thread = threading.Thread(target=client.receieve_message_thread_fn)
         get_msg_thread.start()
         
-        mosaic_index = 0
         cur_ra = center_RA-int(nRA/2)*delta_RA
         for index_ra in range(nRA):
             cur_dec = center_Dec-int(nDec/2)*delta_Dec
             for index_dec in range(nDec):
-                if nRA == 1 and nDec == 1:
-                    save_target_name = target_name
-                else:
-                    save_target_name = target_name+"_"+str(index_ra+1)+str(index_dec+1)
+                save_target_name = target_name
+                if nRA != 1 or nDec != 1:
+                    save_target_name = save_target_name+"_"+str(index_ra+1)+str(index_dec+1)
 
-                print("goto ", (cur_ra, cur_dec))
                 client.goto_target(cur_ra, cur_dec, save_target_name, is_use_LP_filter)
-                client.wait_end_op()
-                print("Goto operation finished")
                 
                 time.sleep(3)
                 
@@ -299,7 +296,6 @@ def main():
                     print("Goto failed.")
                     
                 cur_dec += delta_Dec
-                mosaic_index += 1
             cur_ra += delta_RA
         
         
