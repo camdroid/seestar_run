@@ -123,7 +123,7 @@ class SeestarClient:
                     msg_remainder = msg_remainder[first_index+2:]
                     parsed_data = json.loads(first_msg)
                     
-                    if 'Event' in parsed_data and parsed_data['Event'] == "AutoGoto":
+                    if parsed_data.get('Event') == 'AutoGoto':
                         state = parsed_data['state']
                         print("AutoGoto state: %s" % state)
                         if state == "complete" or state == "fail":
