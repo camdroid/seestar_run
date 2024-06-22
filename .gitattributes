@@ -1,0 +1,2 @@
+# Allow local filesystem to determine line endings
+* text=auto
