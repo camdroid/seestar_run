@@ -1,4 +1,7 @@
 #!/bin/sh
+
+sleep ${SEESTAR_INITIAL_DELAY:-0}
+
 python ./seestar_run.py \
     $SEESTAR_IP \
     $SEESTAR_TARGET \

@@ -43,6 +43,7 @@ USER seestar
 # Copy the source code into the container.
 COPY . .
 
+#ENV SEESTAR_INITIAL_DELAY
 #ENV SEESTAR_IP
 #ENV SEESTAR_TARGET
 #ENV SEESTAR_RA
